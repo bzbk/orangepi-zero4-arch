@@ -12,9 +12,9 @@
 
 | 变体 | 原始大小 | 压缩后 | 桌面 | Release 资产名 |
 |---|---|---|---|---|
-| `arch-tty` | 2.66 GiB | 722 MiB | 无（CLI，SSH/串口调试） | `arch-tty.img.zst` |
-| `arch-fxce` | 4.04 GiB | 1.20 GiB | XFCE 4 + LightDM（X11） | `arch-fxce.img.zst` |
-| `arch-kde` | 6.56 GiB | 2.04 GiB（分卷） | KDE Plasma 6 + SDDM（默认 Plasma X11） | `arch-kde.img.zst.part00` + `part01` |
+| `arch-tty` | 2.66 GiB | 722 MiB | 无（CLI，SSH/串口调试） | `arch-tty.img.zst.part00~02`（3 卷） |
+| `arch-fxce` | 4.04 GiB | 1.20 GiB | XFCE 4 + LightDM（X11） | `arch-fxce.img.zst.part00~04`（5 卷） |
+| `arch-kde` | 6.56 GiB | 2.04 GiB | KDE Plasma 6 + SDDM（默认 Plasma X11） | `arch-kde.img.zst.part00~08`（9 卷） |
 
 镜像 SHA256（**解压后**）：
 
@@ -24,21 +24,24 @@
 c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
 ```
 
-压缩包/分卷 SHA256 见 `SHA256SUMS.parts`。
+压缩分卷与 SHA256 见 `SHA256SUMS.parts`（已按 256 MiB 分卷）。
 
 ## 烧录
 
 ```bash
-# 解压（tty / fxce 单文件）
-zstd -d arch-tty.img.zst -o arch-tty.img
-# KDE 分卷：先合并再解压
-cat arch-kde.img.zst.part00 arch-kde.img.zst.part01 > arch-kde.img.zst
-zstd -d arch-kde.img.zst -o arch-kde.img
+# 1) 合并分卷（每个变体的 part 文件按名称顺序拼接）
+cat arch-tty.img.zst.part*  > arch-tty.img.zst
+cat arch-fxce.img.zst.part* > arch-fxce.img.zst
+cat arch-kde.img.zst.part*  > arch-kde.img.zst
 
-# 校验（可选）
-sha256sum arch-kde.img   # 应等于上表
+# 2) 校验并解压
+sha256sum arch-kde.img.zst   # 应为 66368608520abcbf30bc26353a3a31fe7695681254fe98308bfce690ec7a062f
+zstd -d arch-fxce.img.zst -o arch-fxce.img
 
-# 写入 TF 卡（Linux）
+# 3) 校验镜像（解压后，sha256 应等于上表）
+sha256sum arch-fxce.img
+
+# 4) 写入 TF 卡（Linux）
 sudo dd if=arch-fxce.img of=/dev/sdX bs=4M status=progress conv=fsync
 # 或使用 balenaEtcher（DD 模式）
 ```
