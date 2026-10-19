@@ -9,11 +9,14 @@
 
 ## 镜像（Release 资产）
 
-| 变体 | 原始大小 | 桌面 | 文件（Release 中） |
-|---|---|---|---|
-| `arch-tty` | 2.66 GiB | 无（CLI，SSH/串口调试） | `arch-tty.img.zst.part*` |
-| `arch-fxce` | 4.04 GiB | XFCE 4 + LightDM（X11） | `arch-fxce.img.zst.part*` |
-| `arch-kde` | 6.56 GiB | KDE Plasma 6 + SDDM（默认 Plasma X11） | `arch-kde.img.zst.part*` |
+| 变体 | 原始大小 | 压缩后 | 桌面 | Release 资产名 |
+|---|---|---|---|---|
+| `arch-tty` | 2.66 GiB | 676.7 MiB | 无（CLI，SSH/串口调试） | `arch-tty.img.zst` |
+| `arch-fxce` | 4.04 GiB | 1141.1 MiB | XFCE 4 + LightDM（X11） | `arch-fxce.img.zst` |
+| `arch-kde` | 6.56 GiB | 2037.6 MiB（分卷） | KDE Plasma 6 + SDDM（默认 Plasma X11） | `arch-kde.img.zst.part00` + `part01` |
+
+> ⚠️ **当前 Release 为测试版本，启动问题排查中**，见 [`DEBUGGING.md`](DEBUGGING.md)。
+> 另附 `bootloader-testpack.tar.gz`（可快速替换 SD 卡上的 boot0/boot_package 做启动排查）和 `Image-6.6.98-sun60iw2`。
 
 镜像 SHA256（解压后）：
 
@@ -41,8 +44,10 @@ cd opi-zero4-arch
 ### 合并 + 解压 + 烧录
 
 ```bash
-# 以 KDE 变体为例；tty/fxce 换成对应文件名
-cat arch-kde.img.zst.part* > arch-kde.img.zst
+# tty / fxce 为单文件，直接解压；KDE 先合并分卷
+zstd -d arch-tty.img.zst -o arch-tty.img      # 或 arch-fxce.img.zst
+# KDE：
+cat arch-kde.img.zst.part00 arch-kde.img.zst.part01 > arch-kde.img.zst
 zstd -d arch-kde.img.zst -o arch-kde.img
 
 # 校验（与上面的 SHA256 对比）
