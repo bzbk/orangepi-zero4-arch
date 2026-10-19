@@ -1,0 +1,6 @@
+verbosity=1
+bootlogo=false
+rootdev=UUID=85958913-e3f7-405f-b21e-7df294587fe5
+rootfstype=ext4
+overlay_prefix=sun60i-a733
+fdtfile=allwinner/sun60i-a733-orangepi-zero4.dtb
