@@ -1,45 +1,61 @@
-# 启动问题排查（进行中）
+# 启动问题排查记录（已解决 ✅）
 
-现象：镜像烧录到 Orange Pi Zero 4 后无法启动（红灯常亮、绿灯不闪、HDMI 无输出）。
+Orange Pi Zero 4（A733，4GB LPDDR5）实机，TF 卡启动 Arch Linux ARM 镜像。最初表现为红灯常亮、绿灯不闪、HDMI/串口均无输出或启动中断。
 
-## 硬件/参考信息（官方手册 v1.0）
-
-- SoC：A733，双核 Cortex-A76 + 六核 Cortex-A55，4GB LPDDR5（本机）
-- 手册第 4 章：官方构建方案 = Ubuntu 22.04 x64 运行 orangepi-build（**next 分支**）；
-  u-boot 源码 `u-boot-orangepi` 分支 **v2018.05-sun60iw2**（32 位 arm-linux-gnueabi 工具链）；
-  内核 `linux-orangepi` 分支 **orange-pi-6.6-sun60iw2**（6.6.98）
-- 官方 bootloader 写入方式：boot0 @8KiB、boot_package @16400KiB（与本镜像一致）
-- TF 卡启动优先级高于 eMMC/UFS；红灯=上电（硬件控制）、绿灯闪烁=内核已启动
-- 调试串口：UART0，115200 8N1（3.3V USB-TTL，TX/RX 交叉 + GND）
-
-## 串口诊断已确认的启动链
+## 最终状态
 
 ```
-boot0: Try SD card 0 → 122240 MB → DRAM Type=9 (LPDDR5) → 4096MB → DRAM test OK
-BL31: v2.5(debug) [No DTB found]（非致命）
-U-Boot 2018.07-orangepi (本工程编译) → Model sun60iw2 → DRAM 4 GiB → PMU AXP8191
+BOOT0（官方 Zero4 boot0）→ DRAM Type=9 (LPDDR5) 4096MB → ATF/BL31 → U-Boot 2018.07（官方）
+→ boot.scr → uImage（ARM/0x41000000）→ 6.6.98-sun60iw2 内核 → initramfs → rootfs
+→ Arch Linux ARM 6.6.98-sun60iw2 (ttyS0)
+arch-fxce login:
 ```
+串口登录验证：`orangepi/orangepi` 登录成功；`systemctl is-system-running = degraded`（仅 `user@965.service`（lightdm greeter 用户会话）失败，headless 无显示器导致，SSH/systemd 正常）。
 
-说明 **TF 卡、boot0、DRAM 初始化、ATF、U-Boot 前期** 均正常，问题在 U-Boot 后半段初始化。
+## 根因与修复（按发现顺序）
 
-## 已定位并修复的问题
+### 1. U-Boot 配置/DTB 不匹配（反复卡死）
+orangepi-build 的 `sun60iw2.conf` 对 `orangepizero4` 复用 **Zero3W 的 boot0** + pack-uboot 里**通用 T736 演示板 sys_config/DT**，与 Zero4 硬件不匹配。表现：
+- `boot_package.cfg` 缺 `item=dtb, sunxi.fex` → boot0/ATF 报 `dtb not found for scp` / `No DTB found`，U-Boot 卡在 `board_init`
+- 加上 dtb 项后 U-Boot 继续，但又在 vendor 初始化里连环卡死：
+  - `sunxi_show_logo`（DRM framebuffer 分配）→ data abort
+  - `console_init_r`（依赖 env 的 console mux，而 env 加载失败）→ 卡死
+  - `initr_sunxi_plat` → `lradc_key_check()` 读 ADC 死等
+  - `stdio_add_devices` → video/DRM probe 卡死
 
-| # | 现象（串口/反汇编证据） | 根因 | 修复 |
-|---|---|---|---|
-| 1 | U-Boot 停在 board_init 之后（`CPU=1014 MHz...` 后无输出） | `boot_package.cfg` 缺 `item=dtb, sunxi.fex`（对照同族 sun55iw3 的 cfg 确认），boot0/ATF 均报找不到 DTB | 在 `boot_package.cfg` 增加 `item=dtb, sunxi.fex` 重新打包 |
-| 2 | `initcall: board_env_late_init` → `data abort pc=memalign+0xbe`（r5=0x1000） | `run_command("sunxi_show_logo")` 的 U-Boot 开机 logo/DRM 在 Zero4 上分配 framebuffer 触发 data abort | 跳过 `sunxi_show_logo`（内核显示不受影响） |
-| 3 | `RI console_init_r` → `RCON_IN` 后无输出（卡死） | `CONFIG_SYS_CONSOLE_IS_IN_ENV=y` 时 console_init_r 依赖环境变量做控制台 mux；本机 env 加载失败（`Loading Environment from EXT4... No device specified`），导致挂死 | 关闭 `CONFIG_SYS_CONSOLE_IS_IN_ENV`，走简化控制台初始化 |
-| 4 | `RI initr_sunxi_plat` 后卡死（无 RO） | 该函数内 `check_recovery_key()` → `lradc_key_check()` 读取 ADC 检测恢复键，在 Zero4 上死等（PMIC/I2C 也有读失败日志） | 关闭 `CONFIG_SUNXI_PHY_KEY` / `CONFIG_SUNXI_LRADC_KEY`；并加 `PLAT1..5` 串口标记继续观察 |
+**修复**：不再用 vendor 通用配置硬凑，直接采用 **官方 Zero4 镜像的 boot0 + boot_package**（board 专用 sys_config/DT），一次通过。
 
-## 诊断工具（已内置在当前测试 bootloader）
+### 2. uImage 架构字段错误（最隐蔽）
+32 位 U-Boot 的 `bootm` 只接受 legacy uImage `arch=ARM(0x02)`；镜像里是 `mkimage -A arm64`（`arch=0x16`）：
+```
+Image Type: AArch64 Linux Kernel Image
+Verifying Checksum ... OK
+Unsupported Architecture 0x16
+ERROR: can't get kernel image!
+```
+官方镜像是 `mkimage -A arm -a 0x41000000 -e 0x41000000`。
+**修复**：uImage/uInitrd 全部按官方参数重新打包（`arch=ARM`，kernel load/entry=0x41000000）。
 
-- 裸 UART 调试（直接写 0x02500000，绕过 console 子系统）：`RI<addr>` / `RO<addr>` 每个 initcall 进入/返回；
-  `RCON2_IN/RCON2_DEVOK`、`PLAT1..5`、`envlate:` 阶段标记
-- 地址映射：`u-boot.map` / `System.map`（构建目录 `src/uboot-src/v2018.05-sun60iw2/`）
-- 快速替换 SD 卡 bootloader（不用重烧整镜像）：`bootloader-testpack.tar.gz` 内 `patch-boot.sh`，
-  或本工程 `work/patch_sd_boot.sh /dev/sdX`
+### 3. initramfs 损坏
+`Initramfs unpacking failed: junk within compressed archive` → `Kernel panic - VFS: Unable to mount root fs`。
+检查发现 initramfs 里只有 9 个 cpio 条目、无 `TRAILER!!!`。
+**修复**：`mkinitcpio -k 6.6.98-sun60iw2 -z cat -g /boot/initramfs.cpio` + `gzip -9`（40MB cpio，含 TRAILER），再 `mkimage -A arm -C gzip` 打包 uInitrd。
 
-## 当前状态
+### 4. 三色灯守护进程抢占串口
+`tricolord` 的端口探测顺序为 `ttyACM* → ttyUSB*`，灯板（RP2040）未插时会打开 CH340（板子调试串口）并写入 `COLOR/STYLE/BRIS/STATE` 命令，污染 U-Boot 控制台（还会触发"按键"打断 autoboot）。
+**修复**：调试期间用 udev 规则限制 CH340 仅 root 可访问。
 
-- 卡上测试 bootloader：`boot_package` = `327de054…`（关闭 LRADC/PHY 键 + PLAT 标记 + console 修复 + dtb 项）
-- 等待下一次上电验证：是否走完 `initr_sunxi_plat` → mmc → env → `boot.scr` → 内核
+### 5. 写卡误写普通文件
+读卡器已被拔掉时 `dd of=/dev/sdg` 会在 `/dev` 下创建普通文件，导致"校验通过但卡没更新"。
+**修复**：写入前严格校验 `[ -b /dev/sdX ]`。
+
+## 关键校验值
+
+| 项目 | 值 |
+|---|---|
+| boot0（官方，258,048B） | `5ec7f17be1f2f653…`（头部 length=0x3F000） |
+| boot_package（官方，1,392,640B） | `036a9897559acf22…` |
+| dtb（与官方一致） | `8d4dab3ad26b63a1…` |
+| uImage | `arch=0x02`、`load/entry=0x41000000` |
+| uInitrd | `arch=0x02`、`type=ramdisk`、`gzip` |
+| initramfs | gzip cpio，含 `TRAILER!!!`、无尾部垃圾 |

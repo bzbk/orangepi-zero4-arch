@@ -61,14 +61,14 @@ cp src/opi-build/external/config/bootscripts/boot-sun60iw2.cmd work/boot.cmd
   echo "overlay_prefix=sun60i-a733"
   echo "fdtfile=allwinner/sun60i-a733-orangepi-zero4.dtb"
 } > "$ARCHROOT/boot/orangepiEnv.txt"
-./work/chroot.sh "cd /opi/work && mkimage -C none -A arm64 -T script -d /opi/work/boot.cmd /opi/$ARCHROOT/boot/boot.scr >/dev/null && mkimage -A arm64 -O linux -T kernel -C none -d /opi/$ARCHROOT/boot/Image /opi/$ARCHROOT/boot/uImage >/dev/null" >/dev/null
+./work/chroot.sh "cd /opi/work && mkimage -C none -A arm -T script -d /opi/work/boot.cmd /opi/$ARCHROOT/boot/boot.scr >/dev/null && mkimage -A arm -O linux -T kernel -C none -a 0x41000000 -e 0x41000000 -n Linux-6.6.98-sun60iw2 -d /opi/$ARCHROOT/boot/Image /opi/$ARCHROOT/boot/uImage >/dev/null" >/dev/null
 echo "boot.scr/uImage created"
 
 echo "=== [4/7] initramfs (depmod + mkinitcpio)"
 ./work/arch-chroot.sh "depmod -a $KVER && rm -f /boot/initramfs-linux.img && mkinitcpio -k $KVER -g /boot/initramfs-linux.img 2>&1 | tail -3"
 # ensure gzip compression (mkinitcpio may emit plain cpio in this chroot)
 ./work/arch-chroot.sh 'if gzip -t /boot/initramfs-linux.img 2>/dev/null; then echo "initramfs already gzip"; else gzip -9 -c /boot/initramfs-linux.img > /tmp/ir.gz && mv /tmp/ir.gz /boot/initramfs-linux.img && echo "initramfs gzipped"; fi; file /boot/initramfs-linux.img'
-./work/chroot.sh "mkimage -A arm64 -O linux -T ramdisk -C gzip -d /opi/$ARCHROOT/boot/initramfs-linux.img /opi/$ARCHROOT/boot/uInitrd >/dev/null" >/dev/null
+./work/chroot.sh "mkimage -A arm -O linux -T ramdisk -C gzip -n initrd -d /opi/$ARCHROOT/boot/initramfs-linux.img /opi/$ARCHROOT/boot/uInitrd >/dev/null" >/dev/null
 ls -lh "$ARCHROOT/boot/"
 
 echo "=== [5/7] fstab"
@@ -76,6 +76,15 @@ cat > "$ARCHROOT/etc/fstab" <<EOF
 UUID=$UUID / ext4 defaults,noatime 0 1
 EOF
 echo "root UUID: $UUID"
+
+echo "=== [5.5/7] first boot auto-resize service"
+# 首次开机把根分区/文件系统扩展到整张 TF 卡或 eMMC（见 work/firstboot/）
+install -D -m 0755 work/firstboot/opi-firstboot-resize.sh "$ARCHROOT/usr/local/sbin/opi-firstboot-resize"
+install -D -m 0644 work/firstboot/opi-firstboot-resize.service "$ARCHROOT/etc/systemd/system/opi-firstboot-resize.service"
+mkdir -p "$ARCHROOT/etc/systemd/system/multi-user.target.wants"
+ln -sfn /etc/systemd/system/opi-firstboot-resize.service \
+  "$ARCHROOT/etc/systemd/system/multi-user.target.wants/opi-firstboot-resize.service"
+echo "firstboot auto-resize enabled"
 
 echo "=== [6/7] create image"
 ROOT_MB=$(du -sm "$ARCHROOT" 2>/dev/null | cut -f1) || ROOT_MB=3000

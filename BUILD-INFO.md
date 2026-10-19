@@ -134,3 +134,57 @@ output/                         三个镜像、校验文件、packages、build-s
 
 - 未在真实 Zero 4 上启动验证（U-Boot 串口日志、WiFi 射频、桌面显示/输入）。
 - 未安装 PowerVR GPU 用户态、NPU 运行时、CedarC 媒体库；桌面 GL 为 Mesa 软件渲染。
+
+---
+
+# 附录：v1.0.0 最终修复记录（2026-10-19，实机验证启动成功）
+
+## 启动成功证据（串口 ttyS0 115200）
+
+```
+BOOT0 (官方 Zero4 boot0, 258048B) → DRAM Type=9 LPDDR5 4096MB → DRAM simple test OK
+BL31 v2.5 → U-Boot 2018.07-orangepi (官方 boot_package)
+Hit any key to stop autoboot: 1 0
+mmc0 is current device → Scanning mmc 0:1...
+Found U-Boot script /boot/boot.scr
+## Booting kernel from Legacy Image at 41000000 ...  (Image Type: ARM Linux Kernel Image)
+## Loading init Ramdisk from Legacy Image at 43300000 ... (gzip)
+## Flattened Device Tree blob at 43000000
+Starting kernel ...
+[    0.000000] Linux version 6.6.98-sun60iw2 ... #1.0.0 SMP PREEMPT
+EXT4-fs (mmcblk1p1): re-mounted 1df34b7e-42ed-4686-be70-0978bdefc16f r/w
+... systemd ...
+Arch Linux ARM 6.6.98-sun60iw2 (ttyS0)
+arch-fxce login:
+```
+登录验证：`orangepi/orangepi` 成功；`sshd`/`lightdm`/`NetworkManager` 均 enabled。
+
+## 最终镜像内容
+
+| 项目 | 值 |
+|---|---|
+| boot0（官方，258,048B） | `5ec7f17be1f2f653…`，头部 length=0x3F000 |
+| boot_package（官方，1,392,640B） | `036a9897559acf22…` |
+| uImage | `-A arm -a 0x41000000 -e 0x41000000`（arch=0x02） |
+| uInitrd | `-A arm -O linux -T ramdisk -C gzip`（arch=0x02） |
+| initramfs | `mkinitcpio -k 6.6.98-sun60iw2 -z cat` + gzip -9（含 TRAILER） |
+| dtb | `8d4dab3ad26b63a1…`（与官方镜像一致） |
+| orangepiEnv.txt | `verbosity=1 bootlogo=false rootdev=UUID=… fdtfile=allwinner/sun60i-a733-orangepi-zero4.dtb` |
+
+## 镜像 SHA256（解压后）
+
+```
+7cb3124164105955c3ecae5cda7d5d727d3cf87df9353c2b170d9d13fd64ef4d  arch-tty.img
+47e67c31627a2b942839b468b40fbe893db0f9052e0a04d4977d6820bf1f1018  arch-fxce.img
+c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
+```
+
+压缩/分卷 SHA256 见 `SHA256SUMS.parts`。
+
+## 根因摘要（详见 DEBUGGING.md）
+
+1. vendor 的 Zero3W boot0 + 通用 T736 sys_config 与 Zero4 不匹配 → 使用官方 boot0/boot_package
+2. uImage 用了 `-A arm64`（arch=0x16）被 32 位 U-Boot 拒绝 → 改 `-A arm`
+3. initramfs 文件损坏（无 TRAILER）→ 重新生成 gzip cpio
+4. 三色灯守护进程抢占 CH340 串口污染 U-Boot 控制台
+5. 写卡时误写普通文件（读卡器拔出状态）
