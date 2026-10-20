@@ -1,0 +1,11 @@
+#!/bin/bash
+[[ -f /etc/default/orangepi-motd ]] && . /etc/default/orangepi-motd
+for f in $MOTD_DISABLE; do [[ $f == tips ]] && exit 0; done
+tips=(
+"Connect a 5V/3A USB-C power supply for stable operation."
+"Use 'sudo orangepi-config' to set hostname, WiFi and services."
+"Serial debug console: UART0 115200 8N1 (3.3V TTL)."
+"Expand the root filesystem with 'sudo orangepi-config' (option 8)."
+"WiFi credentials live in /etc/NetworkManager/system-connections/."
+)
+echo -e "\e[93mTip of the day:\e[39m ${tips[$((RANDOM % ${#tips[@]}))]}\n"

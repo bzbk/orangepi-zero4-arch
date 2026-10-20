@@ -1,0 +1,8 @@
+#!/bin/bash
+[[ -f /etc/default/orangepi-motd ]] && . /etc/default/orangepi-motd
+for f in $MOTD_DISABLE; do [[ $f == updates ]] && exit 0; done
+if command -v checkupdates >/dev/null 2>&1; then
+    n=$(checkupdates 2>/dev/null | wc -l)
+    [[ $n -gt 0 ]] && echo -e "[\e[31m $n package updates available\e[0m: \e[1msudo pacman -Syu\e[0m ]\n"
+fi
+exit 0

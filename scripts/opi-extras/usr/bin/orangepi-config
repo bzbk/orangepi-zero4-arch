@@ -1,0 +1,145 @@
+#!/bin/bash
+# orangepi-config (Arch Linux ARM port of the Orange Pi configuration tool)
+# Menu-driven basic system configuration for Orange Pi boards.
+set -u
+[ "$(id -u)" -eq 0 ] || { echo "Please run with sudo: sudo orangepi-config"; exit 1; }
+
+BOARD_NAME=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "Orange Pi")
+KERNEL=$(uname -r)
+WLAN_IF=$(basename "$(ls -d /sys/class/net/wl* 2>/dev/null | head -1)" 2>/dev/null)
+[ -z "$WLAN_IF" ] && WLAN_IF=wlan0
+
+pause() { read -r -p "按回车继续..." _; }
+
+sysinfo() {
+    clear
+    echo "==== 系统信息 ===="
+    echo "板卡    : $BOARD_NAME"
+    echo "内核    : $KERNEL"
+    echo "发行版  : $(. /etc/os-release 2>/dev/null; echo "$PRETTY_NAME")"
+    echo "架构    : $(uname -m)"
+    echo "主机名  : $(hostnamectl --static 2>/dev/null || cat /etc/hostname)"
+    echo "运行时间: $(uptime -p 2>/dev/null)"
+    echo "负载    : $(cut -d' ' -f1-3 /proc/loadavg)"
+    echo "内存    : $(free -h | awk '/^Mem:/{print $3" / "$2}')"
+    echo "磁盘 /  : $(df -h / | awk 'NR==2{print $3" / "$2" ("$5")"}')"
+    echo "网络    :"
+    ip -4 -br addr show 2>/dev/null | awk '$2=="UP"{print "          "$1": "$3}'
+    echo
+    pause
+}
+
+set_hostname() {
+    clear
+    echo "当前主机名: $(hostnamectl --static 2>/dev/null || cat /etc/hostname)"
+    read -r -p "输入新主机名（留空取消）: " name
+    [ -z "$name" ] && return
+    hostnamectl set-hostname "$name" && echo "已设置为 $name"
+    pause
+}
+
+wifi_config() {
+    clear
+    echo "==== WiFi 配置（NetworkManager）===="
+    nmcli radio wifi on 2>/dev/null
+    nmcli dev wifi rescan 2>/dev/null
+    sleep 1
+    nmcli -f SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null | head -20
+    echo
+    read -r -p "SSID（留空取消）: " ssid
+    [ -z "$ssid" ] && return
+    read -r -s -p "密码: " psk; echo
+    nmcli dev wifi connect "$ssid" password "$psk" && echo "WiFi 已连接: $ssid"
+    pause
+}
+
+ssh_toggle() {
+    clear
+    if systemctl is-enabled --quiet sshd 2>/dev/null; then
+        echo "SSH 当前: 已启用（$(systemctl is-active sshd 2>/dev/null)）"
+        read -r -p "要禁用 SSH 吗? [y/N] " a
+        [[ $a == y ]] && systemctl disable --now sshd && echo "SSH 已禁用"
+    else
+        echo "SSH 当前: 未启用"
+        read -r -p "要启用 SSH 吗? [y/N] " a
+        [[ $a == y ]] && systemctl enable --now sshd && echo "SSH 已启用（端口 22）"
+    fi
+    pause
+}
+
+passwords() {
+    clear
+    echo "==== 修改密码 ===="
+    read -r -p "要修改哪个用户的密码? (orangepi/root/其他，留空取消): " u
+    [ -z "$u" ] && return
+    passwd "$u"
+    pause
+}
+
+expand_fs() {
+    clear
+    echo "==== 扩展根文件系统 ===="
+    DISK=$(findmnt -n -o SOURCE / | sed 's/p\?[0-9]*$//; s/[0-9]*$//')
+    PART=$(findmnt -n -o SOURCE /)
+    echo "根分区: $ROOT_SRC 设备: $DISK"
+    rootdev=$(findmnt -n -o SOURCE /)
+    partnum=$(echo "$rootdev" | grep -oE '[0-9]+$')
+    if [ -n "$partnum" ]; then
+        echo "扩容分区 $rootdev ..."
+        growpart "${rootdev%$partnum}" "$partnum" 2>/dev/null || sfdisk --no-reread -N "$partnum" "${rootdev%$partnum}" <<<',+'
+        resize2fs "$rootdev"
+    else
+        resize2fs "$rootdev"
+    fi
+    pause
+}
+
+sys_update() {
+    clear
+    echo "==== 更新系统 ===="
+    read -r -p "执行 pacman -Syu ? [y/N] " a
+    [[ $a == y ]] && pacman -Syu
+    pause
+}
+
+show_welcome() { clear; for f in /etc/update-motd.d/*; do "$f"; done; pause; }
+
+reboot_now() { read -r -p "确认重启? [y/N] " a; [[ $a == y ]] && reboot; }
+poweroff_now() { read -r -p "确认关机? [y/N] " a; [[ $a == y ]] && poweroff; }
+
+while true; do
+    clear
+    cat <<MENU
+==============================================
+   Orange Pi 配置工具 (orangepi-config)
+   板卡: $BOARD_NAME
+   内核: $KERNEL
+==============================================
+ 1) 系统信息
+ 2) 设置主机名
+ 3) 配置 WiFi
+ 4) 启用/禁用 SSH
+ 5) 修改用户密码
+ 6) 扩展根文件系统
+ 7) 更新系统 (pacman -Syu)
+ 8) 显示欢迎页
+ 9) 重启
+10) 关机
+ 0) 退出
+MENU
+    read -r -p "请选择: " choice
+    case "$choice" in
+        1) sysinfo ;;
+        2) set_hostname ;;
+        3) wifi_config ;;
+        4) ssh_toggle ;;
+        5) passwords ;;
+        6) expand_fs ;;
+        7) sys_update ;;
+        8) show_welcome ;;
+        9) reboot_now ;;
+        10) poweroff_now ;;
+        0|"") exit 0 ;;
+        *) ;;
+    esac
+done

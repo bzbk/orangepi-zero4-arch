@@ -1,0 +1,3 @@
+# Configuration for Orange Pi motd scripts
+# Space separated list of scripts to disable: header sysinfo tips updates config
+MOTD_DISABLE=""

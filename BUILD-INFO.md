@@ -188,3 +188,24 @@ c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
 3. initramfs 文件损坏（无 TRAILER）→ 重新生成 gzip cpio
 4. 三色灯守护进程抢占 CH340 串口污染 U-Boot 控制台
 5. 写卡时误写普通文件（读卡器拔出状态）
+
+---
+
+# 附录：Arch 用户态后续增强（2026-10-20）
+
+在实机验证启动后的增强（均已用 Zero4 实测并通过 SSH/串口验证）：
+
+1. **pacman 沙箱修复**：vendor 内核 6.6.98 无 Landlock，pacman 7.1 下载沙箱报
+   `restricting filesystem access failed because Landlock is not supported`；
+   在 `/etc/pacman.conf` 的 `[options]` 加 `DisableSandbox` 解决（已烘焙进镜像）。
+2. **移植官方工具**（Arch 版）：
+   - `/usr/bin/orangepi-config` 菜单式配置（系统信息/主机名/WiFi/SSH/密码/扩展分区/系统更新/重启关机）
+   - `/usr/bin/lcd_set` 显示与背光控制（DRM 状态、旋转、亮度、开关）
+   - `/etc/update-motd.d/{10-header,30-sysinfo,35-tips,40-updates,41-config}` 欢迎页脚本
+   - `/etc/profile.d/98-orangepi-welcome.sh`（SSH/串口交互登录显示欢迎页）
+   - `/etc/issue` Orange Pi 风格串口提示
+3. **网络/远程**：板子 WiFi 已实测连接 `GoforLib`（IP 192.168.10.130），host 公钥写入
+   `orangepi`/`root` 的 authorized_keys，`ssh -i ~/.ssh/orangepi orangepi@192.168.10.130` 免密可用；
+   `arch-fxce.local` mDNS 可解析。主机侧 USB 网卡 `enu1u4c2` 配置为 10.55.0.1/24 + dnsmasq（板子有线备用通道）。
+4. 以上文件均烘焙进 tty/fxce/kde 三个最终镜像（`/usr/bin/orangepi-config`、`/usr/bin/lcd_set`、
+   motd 脚本、profile.d、issue、pacman.conf）。

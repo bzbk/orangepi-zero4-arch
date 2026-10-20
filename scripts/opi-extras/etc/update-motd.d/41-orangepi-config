@@ -1,0 +1,7 @@
+#!/bin/bash
+[[ -f /etc/default/orangepi-motd ]] && . /etc/default/orangepi-motd
+for f in $MOTD_DISABLE; do [[ $f == config ]] && exit 0; done
+if [[ $(( $RANDOM % 2 )) == 0 ]]; then
+    echo -e "[\e[31m General system configuration (beta)\e[0m: \e[1msudo orangepi-config\e[0m ]\n"
+fi
+exit 0

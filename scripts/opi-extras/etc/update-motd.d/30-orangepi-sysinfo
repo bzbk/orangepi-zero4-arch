@@ -1,0 +1,48 @@
+#!/bin/bash
+# System information block (Arch Linux ARM port of official motd sysinfo)
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[[ -f /etc/default/orangepi-motd ]] && . /etc/default/orangepi-motd
+for f in $MOTD_DISABLE; do [[ $f == sysinfo ]] && exit 0; done
+
+model_raw=$(tr -d "\0" < /proc/device-tree/model 2>/dev/null)
+case "$model_raw" in
+    sun60iw2*) model="Orange Pi Zero 4 (sun60iw2)" ;;
+    *) model="$model_raw" ;;
+esac
+kernel=$(uname -r)
+
+# CPU temperature
+temp=""
+for z in /sys/class/thermal/thermal_zone*/temp; do
+    [[ -f $z ]] || continue
+    t=$(cat "$z" 2>/dev/null)
+    [[ -n $t ]] && { temp=$((t/1000)); break; }
+done
+
+# Uptime / load / memory / disk
+up=$(uptime -p 2>/dev/null | sed 's/^up //')
+load=$(cut -d' ' -f1-3 /proc/loadavg)
+mem=$(free -m | awk '/^Mem:/{printf "%d%% (%d/%d MiB)", $3*100/$2, $3, $2}')
+disk=$(df -h / | awk 'NR==2{printf "%s/%s (%s)", $3, $2, $5}')
+
+# IP addresses
+ips=$(ip -4 -br addr show 2>/dev/null | awk '$2=="UP"{print "  "$1": "$3}' | paste -sd' ' -)
+[[ -z $ips ]] && ips="  (none)"
+
+# WiFi SSID
+ssid=""
+if command -v iw >/dev/null 2>&1; then
+    ssid=$(iw dev wlan0 link 2>/dev/null | awk '/SSID:/{print $2}')
+fi
+[[ -n $ssid ]] && ssid="  wlan0: $ssid"
+
+printf "%-14s %s\n" "Board:"    "$model"
+printf "%-14s %s\n" "Kernel:"   "$kernel"
+printf "%-14s %s\n" "Uptime:"   "$up"
+printf "%-14s %s\n" "Load:"     "$load"
+printf "%-14s %s\n" "Memory:"   "$mem"
+printf "%-14s %s\n" "Disk /:"   "$disk"
+[[ -n $temp ]] && printf "%-14s %s\n" "CPU Temp:" "${temp}°C"
+printf "%-14s\n%s\n" "Network:" "$ips"
+[[ -n $ssid ]] && printf "%s\n" "$ssid"
+printf "%s\n" ""

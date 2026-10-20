@@ -1,0 +1,14 @@
+#!/bin/bash
+# Orange Pi Zero 4 welcome header (Arch Linux ARM port of official motd)
+[[ -f /etc/default/orangepi-motd ]] && . /etc/default/orangepi-motd
+for f in $MOTD_DISABLE; do [[ $f == header ]] && exit 0; done
+. /etc/os-release
+KERNELID=$(uname -r)
+cat <<'BANNER'
+   ____                 ____  _
+  / __ \___  _________  / __ \(_)   Orange Pi Zero 4
+ / /_/ / _ \/ ___/ __ \/ /_/ / /    Allwinner A733 · 8-core
+/ ____/  __/ /  / /_/ / ____/ /     Arch Linux ARM (aarch64)
+/_/    \___/_/   \____/_/   /_/
+BANNER
+printf "Welcome to \e[0;91mOrange Pi Zero 4\e[0m with \e[0;91mArch Linux ARM\e[0m \e[0;91mLinux %s\e[0m\n\n" "$KERNELID"

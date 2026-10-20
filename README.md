@@ -69,6 +69,23 @@ sudo dd if=arch-fxce.img of=/dev/sdX bs=4M status=progress conv=fsync
 4. **三色灯守护进程抢占 CH340 串口**、往 U-Boot 控制台写命令 → 调试期限制串口访问
 5. 写卡脚本误在 `/dev/sdg` 不存在时生成普通文件 → 加块设备校验
 
+
+## 内置 Orange Pi 工具 / 欢迎页
+
+镜像内置了移植自官方 Ubuntu 镜像的实用工具（Arch 版）：
+
+| 工具 | 说明 |
+|---|---|
+| `orangepi-config` | 菜单式配置：系统信息、主机名、WiFi、SSH、改密码、扩展根分区、`pacman -Syu`、重启/关机 |
+| `lcd_set` | 显示状态（DRM 连接器/模式/背光）、`rotate 0/90/180/270`、`brightness 0-255`、`off/on` |
+| motd 欢迎页 | SSH / 串口登录自动显示 Orange Pi 横幅、板卡信息、IP/WiFi、温度、Tip |
+| `/etc/issue` | `Orange Pi Zero 4 · Arch Linux ARM \r (\l)` |
+
+> vendor 内核 6.6.98 未开启 Landlock，而 pacman 7.x 的下载沙箱依赖 Landlock；镜像已在 `/etc/pacman.conf` 加入
+> `DisableSandbox`，否则 `pacman -Syu` 会报 `restricting filesystem access failed because Landlock is not supported`。
+
+> 首次启动后可用 `sudo orangepi-config` 修改 hostname / WiFi / SSH，或用 `nmcli` 管理网络。
+
 ## 构建信息
 
 - 构建记录：[`BUILD-INFO.md`](BUILD-INFO.md)
