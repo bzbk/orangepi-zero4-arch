@@ -19,9 +19,9 @@
 镜像 SHA256（**解压后**）：
 
 ```
-2becf4f2cb93f1f3a241e15d6df09e3ef50b1fa71d96cc2bea82b86144dada42  arch-tty.img
-4e52278617b463468341e9f82c9682bbc419d86a470618b3d10cd33d578fa0b7  arch-fxce.img
-537609b7e3c6b04ebbf4b15f3a3379b1531bd2b380830f6e1b640fd2bdbe5f3c  arch-kde.img
+40432709feabcca2a3e3d589932c20b08499fe4f45e135abe115bafcc5b7c45a  arch-tty.img
+49bddee7ba3ecd82f20a0af64b83d06c45704f4d19a64f12fec62efad5bc065c  arch-fxce.img
+a5f542cd98222819a4f388dbefef0039ae7900484297700a51ba67db5f09aa4b  arch-kde.img
 ```
 
 压缩分卷与 SHA256 见 `SHA256SUMS.parts`（已按 256 MiB 分卷）。
