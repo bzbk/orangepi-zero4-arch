@@ -150,3 +150,9 @@ Memory usage: ...   Usage of /: ...
 - U-Boot 启动日志中的 `Loading Environment from EXT4... No device specified` / `bmu_axp515_probe pmic_bus_read fail` / DRM 探测告警是官方 bootloader 的正常噪声，不影响启动
 - 桌面（XFCE/KDE）未在 HDMI 显示器上实机验证（串口/server 启动已验证）
 - 音频 `asoc_simple_parse_of` 告警为 vendor 内核设备树遗留，不影响系统
+
+## License
+
+本项目的构建脚本/文档以 **GPL-2.0** 发布（见 [LICENSE](LICENSE)）；
+镜像中重新分发的 Orange Pi 官方 U-Boot/boot0/boot_package、内核与设备树来自 Orange Pi 官方镜像，
+版权归其各自所有者（GPL-2.0 / 厂商许可）。
