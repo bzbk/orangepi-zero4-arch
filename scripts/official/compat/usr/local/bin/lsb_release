@@ -1,0 +1,10 @@
+#!/bin/bash
+# lsb_release compatibility shim for Arch Linux ARM
+case "${1:-}" in
+  -sc|--codename) echo "rolling" ;;
+  -si|--id) echo "Arch" ;;
+  -sd|--description) echo "Arch Linux ARM" ;;
+  -sr|--release) echo "rolling" ;;
+  -a|--all) printf "Distributor ID:\tArch\nDescription:\tArch Linux ARM\nRelease:\trolling\nCodename:\trolling\n" ;;
+  *) echo "Arch Linux ARM (rolling)" ;;
+esac

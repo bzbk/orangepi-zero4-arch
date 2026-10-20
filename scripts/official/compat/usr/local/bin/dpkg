@@ -1,0 +1,9 @@
+#!/bin/bash
+# Debian dpkg compatibility shim -> pacman (read-only queries; .deb install unsupported)
+case "${1:-}" in
+  -s) shift; pacman -Qi "$@" 2>/dev/null | sed 's/^Name *: /Package: /';;
+  -l) pacman -Q ;;
+  -L) shift; pacman -Ql "$@" ;;
+  -i) echo "[dpkg shim] .deb install is not supported on Arch Linux" >&2; exit 1 ;;
+  *) echo "[dpkg shim] unsupported: $*" >&2; exit 1 ;;
+esac

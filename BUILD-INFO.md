@@ -227,3 +227,23 @@ c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
   - tty  `2becf4f2cb93f1f3a241e15d6df09e3ef50b1fa71d96cc2bea82b86144dada42`
   - fxce `4e52278617b463468341e9f82c9682bbc419d86a470618b3d10cd33d578fa0b7`
   - kde  `537609b7e3c6b04ebbf4b15f3a3379b1531bd2b380830f6e1b640fd2bdbe5f3c`
+
+---
+
+# 附录：改为“官方脚本原样”方案（2026-10-20）
+
+按用户要求，不再自写实现，改为**直接使用官方 Ubuntu 镜像中的原版文件**：
+
+- `/usr/bin/orangepi-config` + `/usr/lib/orangepi-config/{functions,functions-network,jobs,submenu}.sh`
+  —— 从官方镜像逐字节复制（5825 B + 128 KB），菜单/操作逻辑/提示内容与官方完全一致
+- `/etc/update-motd.d/*` —— 官方 8 个 MOTD 脚本原样复制
+- MOTD 显示机制改为官方同款：`pam_exec` 执行
+  `run-parts --lsbsysinit /etc/update-motd.d > /run/motd.dynamic`，
+  再由 `pam_motd.so motd=/run/motd.dynamic` 显示（串口 + SSH 一致）
+- 头部彩色横幅恢复为官方 `toilet -f standard -F metal`（Arch 安装 toilet/figlet，并补 `/usr/share/figlet/standard.flf` 符号链接）
+- 设备名/版本信息：`orangepizero4`、`/etc/orangepi-release`、`/etc/issue` 与官方格式一致
+- 因官方脚本面向 Debian/Ubuntu，新增极薄兼容 shim（`apt/apt-get/dpkg/dpkg-query/lsb_release/debconf-apt-progress` → pacman），**官方脚本本体不改**
+- `lcd_set` 在官方“服务器”镜像中不存在（仅桌面镜像有），故本镜像不提供自造版本
+
+板子实机验证：`orangepi-config --help` 输出官方帮助；菜单可正常弹出（dialog）；
+SSH 登录显示官方彩色横幅 + 系统信息（PAM 机制，无 profile.d 脚本）。

@@ -1,0 +1,25 @@
+#!/bin/bash
+# Debian apt-get compatibility shim -> pacman (for official Orange Pi scripts)
+args=(); pkgs=(); mode=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    update|upgrade|dist-upgrade|full-upgrade|install|remove|purge|autoremove|clean|list|policy|show|download-only) mode="$1";;
+    -y|--yes|--download-only|--no-install-recommends|--allow-downgrades|--reinstall|--force-yes|-qq|-q) ;;
+    -o|--option) shift;;
+    -*) ;;
+    *) pkgs+=("$1");;
+  esac
+  shift
+done
+case "$mode" in
+  update) pacman -Sy --noconfirm ;;
+  upgrade|dist-upgrade|full-upgrade) pacman -Su --noconfirm ;;
+  install) pacman -S --noconfirm --needed "${pkgs[@]}" ;;
+  remove|purge) pacman -Rns --noconfirm "${pkgs[@]}" ;;
+  autoremove) pacman -Rns --noconfirm $(pacman -Qtdq) 2>/dev/null || true ;;
+  clean) pacman -Sc --noconfirm ;;
+  list) pacman -Q ;;
+  download-only) echo "[apt-get shim] download-only not supported on Arch" >&2; exit 1 ;;
+  policy|show) pacman -Qi "${pkgs[@]}" ;;
+  *) echo "[apt-get shim] unsupported: $*" >&2; exit 1 ;;
+esac

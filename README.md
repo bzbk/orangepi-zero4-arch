@@ -97,21 +97,43 @@ Usage of /:    ...
 [ General system configuration (beta): orangepi-config ]
 ```
 
-## 内置 Orange Pi 工具 / 欢迎页
+## 内置的官方工具 / 欢迎页（与官方镜像一致）
 
-镜像内置了移植自官方 Ubuntu 镜像的实用工具（Arch 版）：
+**工具全部直接取自官方 Ubuntu 镜像原版**（未重写）：
 
-| 工具 | 说明 |
+| 文件 | 来源 |
 |---|---|
-| `orangepi-config` | 菜单式配置：系统信息、主机名、WiFi、SSH、改密码、扩展根分区、`pacman -Syu`、重启/关机 |
-| `lcd_set` | 显示状态（DRM 连接器/模式/背光）、`rotate 0/90/180/270`、`brightness 0-255`、`off/on` |
-| motd 欢迎页 | SSH / 串口登录自动显示 Orange Pi 横幅、板卡信息、IP/WiFi、温度、Tip |
-| `/etc/issue` | `Orange Pi Zero 4 · Arch Linux ARM \r (\l)` |
+| `/usr/bin/orangepi-config` | 官方 `/usr/sbin/orangepi-config` 原版（5825 B，177 行） |
+| `/usr/lib/orangepi-config/*.sh` | 官方原版：`functions.sh` / `functions-network.sh` / `jobs.sh` / `submenu.sh` |
+| `/etc/update-motd.d/10,30,35,40,41,92,97,98` | 官方原版 MOTD 脚本 |
+| `/etc/pam.d/system-login` | 官方同款逻辑：`pam_exec → run-parts --lsbsysinit /etc/update-motd.d > /run/motd.dynamic`，再由 `pam_motd.so motd=/run/motd.dynamic` 显示 |
+| `/etc/orangepi-release` | 官方字段（`BOARD=orangepizero4`、`BOARD_NAME="Orange Pi Zero 4"`、`VERSION=1.0.0`） |
+| `/etc/issue` | `Orange Pi 1.0.0 Arch \l`（官方为 `... Resolute \l`，同格式） |
+| 主机名 | **`orangepizero4`**（与官方一致；`/etc/hosts` 同步） |
 
-> vendor 内核 6.6.98 未开启 Landlock，而 pacman 7.x 的下载沙箱依赖 Landlock；镜像已在 `/etc/pacman.conf` 加入
-> `DisableSandbox`，否则 `pacman -Syu` 会报 `restricting filesystem access failed because Landlock is not supported`。
+由于官方脚本是按 Debian/Ubuntu 写的，Arch 上提供了一层**极薄的兼容 shim**（`/usr/local/bin/{apt,apt-get,dpkg,dpkg-query,lsb_release,debconf-apt-progress}`，
+把包管理调用映射到 pacman）；官方脚本本体保持**逐字节原样**，因此菜单结构/操作逻辑/提示文字与官方完全相同。
+Debian 专属功能（如安装 .deb、armbian 内核包升级）在 Arch 上不可用属预期。
 
-> 首次启动后可用 `sudo orangepi-config` 修改 hostname / WiFi / SSH，或用 `nmcli` 管理网络。
+MOTD 依赖（`toilet`、`figlet` 字体、`run-parts`、`dialog`、`bc`、`inetutils`）已预装。
+
+> 说明：官方**服务器镜像**里没有 `lcd_set`（它只存在于官方桌面镜像）；因此本镜像未提供该脚本，
+> 避免自造一个“像官方但不一样”的实现。若需要，可从官方 XFCE/KDE 镜像中提取原版后加入。
+
+登录效果（SSH / 串口一致，走官方 PAM + 原版脚本）：
+
+```
+  ___  ____  _   _____                _  _
+ / _ \|  _ \(_) |__  /___ _ __ ___   | || |
+| | | | |_) | |   / // _ \ '__/ _ \  | || |_
+| |_| |  __/| |  / /|  __/ | | (_) | |__   _|
+ \___/|_|   |_| /____\___|_|  \___/     |_|
+
+Welcome to Orange Pi 1.0.0 Arch with Linux 6.6.98-sun60iw2
+
+System load:  ...   Up time: ...   IP: ...
+Memory usage: ...   Usage of /: ...
+```
 
 ## 构建信息
 
