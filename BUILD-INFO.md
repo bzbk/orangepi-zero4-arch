@@ -186,7 +186,7 @@ c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
 1. vendor 的 Zero3W boot0 + 通用 T736 sys_config 与 Zero4 不匹配 → 使用官方 boot0/boot_package
 2. uImage 用了 `-A arm64`（arch=0x16）被 32 位 U-Boot 拒绝 → 改 `-A arm`
 3. initramfs 文件损坏（无 TRAILER）→ 重新生成 gzip cpio
-4. 三色灯守护进程抢占 CH340 串口污染 U-Boot 控制台
+4. 其他程序占用 CH340 串口污染 U-Boot 控制台
 5. 写卡时误写普通文件（读卡器拔出状态）
 
 ---

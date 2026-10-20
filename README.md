@@ -66,7 +66,7 @@ sudo dd if=arch-fxce.img of=/dev/sdX bs=4M status=progress conv=fsync
 1. **bootloader 用错**：orangepi-build 对 Zero4 复用 Zero3W boot0 + 通用 T736 sys_config，与 Zero4 硬件不匹配 → 改用**官方 Zero4 镜像的 boot0（258,048B）/ boot_package**
 2. **uImage 架构字段错误**：32 位 U-Boot 只接受 `arch=ARM`；之前用 `mkimage -A arm64` 被拒（`Unsupported Architecture 0x16`）→ 改为 `-A arm -a 0x41000000 -e 0x41000000`
 3. **initramfs 损坏**（无 `TRAILER!!!`、解包 junk）→ 重新用 `mkinitcpio -k 6.6.98-sun60iw2 -z cat` + gzip 生成
-4. **三色灯守护进程抢占 CH340 串口**、往 U-Boot 控制台写命令 → 调试期限制串口访问
+4. **其他程序占用 CH340 串口**（写命令打断 U-Boot 控制台）→ 调试期由 root 独占串口设备
 5. 写卡脚本误在 `/dev/sdg` 不存在时生成普通文件 → 加块设备校验
 
 
@@ -134,6 +134,10 @@ Welcome to Orange Pi 1.0.0 Arch with Linux 6.6.98-sun60iw2
 System load:  ...   Up time: ...   IP: ...
 Memory usage: ...   Usage of /: ...
 ```
+
+## 相关项目
+
+- [orangepi-config-arch](https://github.com/bzbk/orangepi-config-arch) — 官方 Orange Pi 配置工具（orangepi-config）的 Arch Linux ARM 移植版（apt → pacman）
 
 ## 构建信息
 

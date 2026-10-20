@@ -35,8 +35,7 @@ def done_set():
 
 def curl(args, timeout=900):
     env = dict(os.environ)
-    env.setdefault('https_proxy', 'http://127.0.0.1:7897')
-    env.setdefault('http_proxy', 'http://127.0.0.1:7897')
+    env.pop('https_proxy', None); env.pop('http_proxy', None)
     return subprocess.run(['curl', '-sS', '--max-time', str(timeout)] + args,
                           capture_output=True, text=True, env=env)
 

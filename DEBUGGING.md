@@ -41,9 +41,8 @@ ERROR: can't get kernel image!
 检查发现 initramfs 里只有 9 个 cpio 条目、无 `TRAILER!!!`。
 **修复**：`mkinitcpio -k 6.6.98-sun60iw2 -z cat -g /boot/initramfs.cpio` + `gzip -9`（40MB cpio，含 TRAILER），再 `mkimage -A arm -C gzip` 打包 uInitrd。
 
-### 4. 三色灯守护进程抢占串口
-`tricolord` 的端口探测顺序为 `ttyACM* → ttyUSB*`，灯板（RP2040）未插时会打开 CH340（板子调试串口）并写入 `COLOR/STYLE/BRIS/STATE` 命令，污染 U-Boot 控制台（还会触发"按键"打断 autoboot）。
-**修复**：调试期间用 udev 规则限制 CH340 仅 root 可访问。
+### 4. 其他程序抢占串口
+主机上其他串口程序/守护进程（自动探测 `/dev/ttyACM*`、`/dev/ttyUSB*`）可能打开 CH340（板子调试串口）并写入控制字符，污染 U-Boot 控制台（还会触发“按键”打断 autoboot）。调试期间用 udev 规则让 root 独占该串口（`MODE=0600, GROUP=root`）。
 
 ### 5. 写卡误写普通文件
 读卡器已被拔掉时 `dd of=/dev/sdg` 会在 `/dev` 下创建普通文件，导致"校验通过但卡没更新"。
