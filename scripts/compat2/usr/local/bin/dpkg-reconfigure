@@ -1,0 +1,8 @@
+#!/bin/bash
+# Debian dpkg-reconfigure compatibility shim (limited)
+case "${1:-}" in
+  openssh-server) ssh-keygen -A 2>/dev/null; systemctl restart sshd 2>/dev/null; exit 0 ;;
+  locales) locale-gen 2>/dev/null; exit 0 ;;
+  tzdata) exit 0 ;;
+  *) echo "[dpkg-reconfigure shim] unsupported: $*" >&2; exit 1 ;;
+esac

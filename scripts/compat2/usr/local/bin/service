@@ -1,0 +1,25 @@
+#!/bin/bash
+# SysV 'service' compatibility shim -> systemctl (for official Orange Pi scripts)
+name="${1:-}"; action="${2:-status}"
+[ -n "$name" ] || { echo "usage: service <name> <action>" >&2; exit 1; }
+case "$name" in
+  ssh) [ -e /etc/systemd/system/sshd.service ] && name=sshd || name=sshd ;;
+  avahi-daemon) name=avahi-daemon ;;
+  hostapd) name=hostapd ;;
+  dnsmasq) name=dnsmasq ;;
+  NetworkManager|network-manager) name=NetworkManager ;;
+  *) ;;
+esac
+case "$action" in
+  status)
+    if systemctl is-active --quiet "$name" 2>/dev/null; then
+      echo "$name.service is active (running)"; exit 0
+    else
+      echo "$name.service is inactive (dead)"; exit 3
+    fi ;;
+  start|stop|restart|reload|try-restart|force-reload)
+    exec systemctl "$action" "$name" ;;
+  enable|disable)
+    exec systemctl "$action" "$name" ;;
+  *) exec systemctl "$action" "$name" ;;
+esac

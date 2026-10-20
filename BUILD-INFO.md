@@ -247,3 +247,20 @@ c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
 
 板子实机验证：`orangepi-config --help` 输出官方帮助；菜单可正常弹出（dialog）；
 SSH 登录显示官方彩色横幅 + 系统信息（PAM 机制，无 profile.d 脚本）。
+
+---
+
+# 附录：官方脚本的 Arch 化改造（2026-10-20 深夜）
+
+按用户要求把官方脚本里的 `apt` 换成 `pacman`（而不是仅靠 shim）：
+
+- `/usr/lib/orangepi-config/{functions,functions-network,jobs,submenu}.sh`：
+  - `apt-get/apt update|upgrade|install|purge` → `pacman -Sy| -Su | -S --needed | -Rns`
+  - `dpkg -s` → `pacman -Q`；`is_package_manager_running` 检查 pacman 进程
+  - `service X` → `systemctl`；`dpkg-reconfigure openssh-server` → `ssh-keygen -A; systemctl restart sshd`
+  - 菜单文字：`Run apt update & apt upgrade` → **`Run pacman update & upgrade`**
+  - 新增 `sun60iw2` 的 `OVERLAYDIR=/boot/dtb/allwinner/overlay`，并补 `/boot/dtb/overlay` 符号链接（Hardware 菜单才有内容）
+  - MOTD `40-orangepi-updates` 从 apt 缓存改为 `pacman -Qu` 统计
+- 极薄 shim 仍保留（`/usr/local/bin/{apt,apt-get,dpkg,dpkg-query,lsb_release,debconf-apt-progress,service,dpkg-reconfigure}`），覆盖少数未替换的 Debian 调用
+- 镜像源改为清华/USTC/官方（`/etc/pacman.d/mirrorlist`）；新增 `opi-clock.service`（无 RTC 时用构建时间校准时钟，避免 TLS 证书 “not yet valid”）并启用 `systemd-timesyncd`
+- 实机验证：`orangepi-config` Firmware 菜单成功执行 `pacman -Sy && pacman -Su`（板子已实际升级）；Hardware 菜单可列出 `sun60i-a733-*.dtbo`；Firmware 菜单文字已变 pacman

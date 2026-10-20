@@ -20,12 +20,12 @@ sudo mkdir -p "$MNT/usr/lib/orangepi-config" "$MNT/usr/local/bin" "$MNT/usr/loca
 sudo cp -f work/opi-extras3/usr/sbin/orangepi-config "$MNT/usr/bin/orangepi-config"
 sudo cp -f work/opi-extras3/usr/lib/orangepi-config/*.sh "$MNT/usr/lib/orangepi-config/"
 sudo cp -f work/opi-extras3/usr/local/bin/* "$MNT/usr/local/bin/"
-sudo cp -f work/opi-extras3/usr/local/sbin/opi-update-motd "$MNT/usr/local/sbin/"
+sudo cp -f work/opi-extras3/usr/local/sbin/opi-update-motd work/opi-extras3/usr/local/sbin/opi-set-clock "$MNT/usr/local/sbin/"
 sudo cp -f work/opi-extras3/etc/update-motd.d/* "$MNT/etc/update-motd.d/"
 sudo cp -f work/opi-extras3/etc/orangepi-release "$MNT/etc/orangepi-release"
 sudo cp -f work/opi-extras3/etc/issue "$MNT/etc/issue"
 sudo cp -f work/opi-extras3/etc/default/orangepi-motd "$MNT/etc/default/orangepi-motd"
-sudo chmod 755 "$MNT/usr/bin/orangepi-config" "$MNT"/usr/local/bin/* "$MNT/usr/local/sbin/opi-update-motd" "$MNT"/etc/update-motd.d/*
+sudo chmod 755 "$MNT/usr/bin/orangepi-config" "$MNT"/usr/local/bin/* "$MNT/usr/local/sbin/"* "$MNT"/etc/update-motd.d/*
 sudo chmod 644 "$MNT/etc/orangepi-release" "$MNT/etc/issue" "$MNT/etc/default/orangepi-motd"
 # 4) figlet 字体扁平化符号链接（toilet 需要 /usr/share/figlet/standard.flf）
 sudo chroot "$MNT" /bin/bash -c 'cd /usr/share/figlet && for f in fonts/*.flf; do b=$(basename "$f"); [ -e "$b" ] || ln -sf "fonts/$b" "$b"; done' || true
@@ -39,6 +39,14 @@ fi
 # 6) PAM: 官方动态 motd 逻辑（pam_exec 生成 + pam_motd 显示）
 sudo grep -q 'opi-update-motd' "$MNT/etc/pam.d/system-login" || sudo sed -i '/pam_motd.so/i session    optional   pam_exec.so quiet /usr/local/sbin/opi-update-motd' "$MNT/etc/pam.d/system-login"
 sudo grep -q 'motd=/run/motd.dynamic' "$MNT/etc/pam.d/system-login" || sudo sed -i '/pam_motd.so$/i session    optional   pam_motd.so motd=/run/motd.dynamic' "$MNT/etc/pam.d/system-login"
+# 6.5) 镜像源、初始时钟、NTP
+sudo mkdir -p "$MNT/etc/pacman.d" "$MNT/etc/systemd/system"
+sudo cp -f work/opi-extras3/etc/pacman.d/mirrorlist "$MNT/etc/pacman.d/mirrorlist"
+sudo cp -f work/opi-extras3/etc/systemd/system/opi-clock.service "$MNT/etc/systemd/system/"
+sudo cp -f work/opi-extras3/etc/opi-build-timestamp "$MNT/etc/opi-build-timestamp"
+sudo chroot "$MNT" /bin/bash -c 'systemctl enable opi-clock.service systemd-timesyncd.service sshd NetworkManager >/dev/null 2>&1 || true'
+sudo ln -sfn /boot/dtb/allwinner/overlay "$MNT/boot/dtb/overlay"
+
 # 7) pacman DisableSandbox
 sudo grep -q '^DisableSandbox' "$MNT/etc/pacman.conf" || sudo sed -i '/^\[options\]/a DisableSandbox' "$MNT/etc/pacman.conf"
 sudo sync

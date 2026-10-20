@@ -1,0 +1,11 @@
+#!/bin/bash
+# debconf-apt-progress shim: strip its options and run the wrapped command
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --) shift; break;;
+    --*=*) shift;;
+    --*) shift;;
+    *) break;;
+  esac
+done
+exec "$@"

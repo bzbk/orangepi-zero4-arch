@@ -1,0 +1,18 @@
+#!/bin/bash
+# Debian dpkg compatibility shim -> pacman (installed-state queries only)
+case "${1:-}" in
+  -s|--status)
+    shift; for p; do
+      p="${p%%:*}"
+      if pacman -Q "$p" >/dev/null 2>&1; then
+        echo "Package: $p"; echo "Status: install ok installed"
+      else
+        echo "Package: $p"; echo "Status: deinstall ok not-installed"; exit 1
+      fi
+    done ;;
+  -l|--list) pacman -Q ;;
+  -L|--listfiles) shift; pacman -Ql "$@" ;;
+  -i|--install) echo "[dpkg shim] .deb install is not supported on Arch Linux" >&2; exit 1 ;;
+  -r|--remove|-P|--purge) echo "[dpkg shim] use pacman -Rns" >&2; exit 1 ;;
+  *) echo "[dpkg shim] unsupported: $*" >&2; exit 1 ;;
+esac

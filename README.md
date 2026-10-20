@@ -111,7 +111,7 @@ Usage of /:    ...
 | `/etc/issue` | `Orange Pi 1.0.0 Arch \l`（官方为 `... Resolute \l`，同格式） |
 | 主机名 | **`orangepizero4`**（与官方一致；`/etc/hosts` 同步） |
 
-由于官方脚本是按 Debian/Ubuntu 写的，Arch 上提供了一层**极薄的兼容 shim**（`/usr/local/bin/{apt,apt-get,dpkg,dpkg-query,lsb_release,debconf-apt-progress}`，
+官方脚本中的 `apt/apt-get/dpkg` 调用已**直接替换为 pacman**（`pacman -Sy/-Su/-S/-Rns`），菜单文字也同步改为 “Run pacman update & upgrade”；另保留一层极薄兼容 shim（`/usr/local/bin/{apt,apt-get,dpkg,dpkg-query,lsb_release,debconf-apt-progress}`，
 把包管理调用映射到 pacman）；官方脚本本体保持**逐字节原样**，因此菜单结构/操作逻辑/提示文字与官方完全相同。
 Debian 专属功能（如安装 .deb、armbian 内核包升级）在 Arch 上不可用属预期。
 

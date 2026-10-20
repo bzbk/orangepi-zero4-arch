@@ -1,0 +1,49 @@
+#!/bin/bash
+# Debian apt-get/apt compatibility shim -> pacman (for official Orange Pi scripts)
+declare -A PKGMAP=(
+  [avahi-daemon]=avahi [avahi-utils]=avahi
+  [libpam-google-authenticator]=libpam-google-authenticator
+  [openssh-server]=openssh [openssh-client]=openssh
+  [ntp]=ntp [chrony]=chrony
+  [wireless-tools]=wireless_tools [rfkill]=util-linux
+  [hostapd]=hostapd [dnsmasq]=dnsmasq
+  [zsh]=zsh [tmux]=tmux [qrencode]=qrencode
+  [lsb-release]=lsb-release [bash]=bash
+)
+sub=""; pkgs=(); skip_next=0; simulate=0; download_only=0
+while [[ $# -gt 0 ]]; do
+  a="$1"
+  if [[ $skip_next -eq 1 ]]; then skip_next=0; shift; continue; fi
+  case "$a" in
+    update) sub=update ;;
+    upgrade|dist-upgrade|full-upgrade) sub=upgrade ;;
+    install|reinstall) sub=install ;;
+    remove|purge|autoremove) sub=remove ;;
+    clean|autoclean) sub=clean ;;
+    -o|--option) skip_next=1 ;;
+    --download-only) download_only=1 ;;
+    --simulate|-s) simulate=1 ;;
+    -y|--yes|--reinstall|--allow-downgrades|--no-install-recommends|--force-yes|-qq|-q|--ignore-missing) ;;
+    -*=*) ;;
+    --*) ;;
+    -*) ;;
+    *) pkgs+=("$a") ;;
+  esac
+  shift
+done
+map_pkg() { local p="$1"; echo "${PKGMAP[$p]:-$p}"; }
+if [[ $download_only -eq 1 ]]; then echo "[apt-get shim] --download-only not supported on Arch, skipped" >&2; exit 0; fi
+case "$sub" in
+  update) [[ $simulate -eq 1 ]] && { echo "pacman -Sy (simulate)"; exit 0; }; exec pacman -Sy --noconfirm ;;
+  upgrade) [[ $simulate -eq 1 ]] && { echo "pacman -Su (simulate)"; exit 0; }; exec pacman -Su --noconfirm ;;
+  install)
+    mapped=(); for p in "${pkgs[@]}"; do mapped+=("$(map_pkg "$p")"); done
+    [[ $simulate -eq 1 ]] && { echo "pacman -S ${mapped[*]} (simulate)"; exit 0; }
+    exec pacman -S --noconfirm --needed "${mapped[@]}" ;;
+  remove)
+    mapped=(); for p in "${pkgs[@]}"; do mapped+=("$(map_pkg "$p")"); done
+    [[ ${#mapped[@]} -eq 0 ]] && exit 0
+    exec pacman -Rns --noconfirm "${mapped[@]}" ;;
+  clean) exec pacman -Sc --noconfirm ;;
+  *) echo "[apt-get shim] unsupported: $*" >&2; exit 1 ;;
+esac
