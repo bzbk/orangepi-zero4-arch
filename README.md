@@ -19,9 +19,9 @@
 镜像 SHA256（**解压后**）：
 
 ```
-7cb3124164105955c3ecae5cda7d5d727d3cf87df9353c2b170d9d13fd64ef4d  arch-tty.img
-47e67c31627a2b942839b468b40fbe893db0f9052e0a04d4977d6820bf1f1018  arch-fxce.img
-c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
+2becf4f2cb93f1f3a241e15d6df09e3ef50b1fa71d96cc2bea82b86144dada42  arch-tty.img
+4e52278617b463468341e9f82c9682bbc419d86a470618b3d10cd33d578fa0b7  arch-fxce.img
+537609b7e3c6b04ebbf4b15f3a3379b1531bd2b380830f6e1b640fd2bdbe5f3c  arch-kde.img
 ```
 
 压缩分卷与 SHA256 见 `SHA256SUMS.parts`（已按 256 MiB 分卷）。
@@ -53,7 +53,7 @@ sudo dd if=arch-fxce.img of=/dev/sdX bs=4M status=progress conv=fsync
 | 项目 | 值 |
 |---|---|
 | 用户 | `orangepi` / 密码 `orangepi`（wheel 组），`root` / `orangepi` |
-| 主机名 | `arch-tty` / `arch-fxce` / `arch-kde` |
+| 主机名 | **`orangepizero4`**（与官方镜像一致；可用 `sudo orangepi-config` 修改） |
 | WiFi（自动连接） | SSID `OrangePi`，密码 `OrangePi@123`（`/etc/NetworkManager/system-connections/OrangePi.nmconnection`） |
 | 远程 | `sshd` 默认启用；`avahi-daemon` + `nss-mdns`，可 `ssh orangepi@arch-kde.local` |
 | 串口 | UART0 `ttyS0` 115200 8N1（3.3V USB-TTL，TX/RX 交叉 + GND） |
@@ -69,6 +69,33 @@ sudo dd if=arch-fxce.img of=/dev/sdX bs=4M status=progress conv=fsync
 4. **三色灯守护进程抢占 CH340 串口**、往 U-Boot 控制台写命令 → 调试期限制串口访问
 5. 写卡脚本误在 `/dev/sdg` 不存在时生成普通文件 → 加块设备校验
 
+
+
+### 欢迎页（与官方 Ubuntu 镜像严格对齐）
+
+- 使用官方 `update-motd.d` 脚本原样移植：`10-orangepi-header`（官方同款彩色 ASCII 横幅）、
+  `30-orangepi-sysinfo`、`35-orangepi-tips`、`40-orangepi-updates`、`41-orangepi-config`、
+  `92-unattended-upgrades`、`97-overlayroot`、`98-orangepi-autoreboot-warn`
+- `/etc/orangepi-release`：`BOARD=orangepizero4`、`BOARD_NAME="Orange Pi Zero 4"`、`VERSION=1.0.0`
+- `/etc/issue`：`Orange Pi 1.0.0 Arch \l`（与官方 `Orange Pi 1.0.0 Resolute \l` 同格式）
+- 依赖 `bc`、`inetutils` 已预装
+- 登录效果（SSH / 串口）：
+
+```
+  ___  ____  _   _____                _  _
+ / _ \|  _ \(_) |__  /___ _ __ ___   | || |
+| | | | |_) | |   / // _ \ '__/ _ \  | || |_
+| |_| |  __/| |  / /|  __/ | | (_) | |__   _|
+ \___/|_|   |_| /____\___|_|  \___/     |_|
+
+Welcome to Orange Pi 1.0.0 Arch with Linux 6.6.98-sun60iw2
+
+System load:   ...   Up time: ...   Local users: ...
+Memory usage:  ...   IP: ...
+Usage of /:    ...
+
+[ General system configuration (beta): orangepi-config ]
+```
 
 ## 内置 Orange Pi 工具 / 欢迎页
 

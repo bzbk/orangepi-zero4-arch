@@ -209,3 +209,21 @@ c87354db480c5c998c99842c46257b6a6cd48a5f5bc8d448aa31660d1591ce36  arch-kde.img
    `arch-fxce.local` mDNS 可解析。主机侧 USB 网卡 `enu1u4c2` 配置为 10.55.0.1/24 + dnsmasq（板子有线备用通道）。
 4. 以上文件均烘焙进 tty/fxce/kde 三个最终镜像（`/usr/bin/orangepi-config`、`/usr/bin/lcd_set`、
    motd 脚本、profile.d、issue、pacman.conf）。
+
+---
+
+# 附录：欢迎页/设备名与官方镜像严格对齐（2026-10-20 晚）
+
+- **设备名**：`/etc/hostname`、`/etc/hosts(127.0.1.1)` 均改为 **`orangepizero4`**（与官方 Ubuntu 镜像一致）
+- **`/etc/orangepi-release`**：按官方字段生成（BOARD/BOARD_NAME/BOARDFAMILY/VERSION/DISTRIBUTION_CODENAME/...）
+- **`/etc/issue`**：`Orange Pi 1.0.0 Arch \l`（官方为 `Orange Pi 1.0.0 Resolute \l`）
+- **MOTD**：`/etc/update-motd.d/` 直接使用官方脚本原样移植（10/30/35/40/41/92/97/98），
+  其中 `10-orangepi-header` 的 `toilet` 彩色横幅改为使用**从官方镜像运行输出的同一份 ASCII/ANSI 字模**
+  （避免 Arch 无 toilet 包导致横幅缺失）；`/etc/profile.d/98-orangepi-welcome.sh` 在 SSH/串口交互登录时
+  按官方顺序执行 MOTD 脚本。
+- 依赖：镜像预装 `bc`、`inetutils`（official 脚本需要；已用 chroot pacman 安装进三个镜像）。
+- 已实测（Zero4）：SSH 登录与串口登录输出格式与官方一致（仅发行版字样为 Arch、硬件数值不同）。
+- 新的镜像 SHA256（解压后）：
+  - tty  `2becf4f2cb93f1f3a241e15d6df09e3ef50b1fa71d96cc2bea82b86144dada42`
+  - fxce `4e52278617b463468341e9f82c9682bbc419d86a470618b3d10cd33d578fa0b7`
+  - kde  `537609b7e3c6b04ebbf4b15f3a3379b1531bd2b380830f6e1b640fd2bdbe5f3c`

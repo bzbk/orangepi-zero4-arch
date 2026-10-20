@@ -1,0 +1,81 @@
+#!/bin/bash
+# lcd_set - display/LCD helper for Orange Pi boards (Arch Linux ARM port)
+# Usage: lcd_set [status|list|rotate <deg>|brightness <0-255>|off|on]
+set -u
+usage() {
+    cat <<USAGE
+用法: lcd_set <命令>
+  status             显示显示器/DRM 连接状态与背光
+  list               列出 DRM 连接器与可用显示模式
+  rotate <0|90|180|270>  设置 X11 屏幕旋转（需在图形会话中运行）
+  brightness <0-255> 设置屏幕背光亮度
+  off / on           关闭/打开屏幕背光
+USAGE
+}
+
+drm_dir=/sys/class/drm
+backlight=$(ls -d /sys/class/backlight/* 2>/dev/null | head -1)
+
+status() {
+    echo "== DRM 连接器 =="
+    for c in "$drm_dir"/card*-*; do
+        [ -e "$c/status" ] || continue
+        st=$(cat "$c/status")
+        [ "$st" = "connected" ] || continue
+        mod=$(head -1 "$c/modes" 2>/dev/null)
+        echo "  $(basename "$c"): $st  ${mod:-}"
+    done
+    echo "== 背光 =="
+    if [ -n "$backlight" ]; then
+        cur=$(cat "$backlight/brightness" 2>/dev/null)
+        max=$(cat "$backlight/max_brightness" 2>/dev/null)
+        echo "  $(basename "$backlight"): $cur / $max"
+    else
+        echo "  (无背光设备)"
+    fi
+    if [ -n "${DISPLAY:-}" ] && command -v xrandr >/dev/null; then
+        echo "== X11 =="; xrandr --query | grep -E " connected| primary" | head -5
+    fi
+}
+
+list_modes() {
+    for c in "$drm_dir"/card*-*; do
+        [ -e "$c/status" ] || continue
+        echo "$(basename "$c"): $(cat "$c/status")"
+        sed 's/^/    /' "$c/modes" 2>/dev/null | head -10
+    done
+}
+
+rotate() {
+    local deg=${1:-}
+    case "$deg" in 0|90|180|270) ;; *) echo "角度必须是 0/90/180/270"; exit 1;; esac
+    if [ -n "${DISPLAY:-}" ] && command -v xrandr >/dev/null; then
+        xrandr --output "$(xrandr --query | awk '/ connected/{print $1; exit}')" --rotate "$deg"
+    else
+        echo "当前不在图形会话中。对于内核显示旋转，可使用 DT overlay（见 /boot/dtb/allwinner/overlay/）。"
+        echo "例如在 /boot/orangepiEnv.txt 增加: overlays=<panel>-rotate"
+        exit 1
+    fi
+}
+
+brightness() {
+    local val=${1:-}
+    [ -n "$backlight" ] || { echo "没有可用的背光设备"; exit 1; }
+    [ -n "$val" ] || { cat "$backlight/brightness"; return; }
+    [ "$val" -ge 0 ] 2>/dev/null && [ "$val" -le 255 ] 2>/dev/null || { echo "亮度范围 0-255"; exit 1; }
+    echo "$val" > "$backlight/brightness" && echo "亮度已设为 $val"
+}
+
+case "${1:-status}" in
+    status) status ;;
+    list) list_modes ;;
+    rotate) rotate "${2:-}" ;;
+    brightness) brightness "${2:-}" ;;
+    off|on)
+        if [ -n "$backlight" ]; then
+            echo "$([ "$1" = off ] && echo 0 || cat "$backlight/max_brightness")" > "$backlight/brightness"
+            echo "背光已$([ "$1" = off ] && echo 关闭 || echo 打开)"
+        else echo "没有可用的背光设备"; exit 1; fi ;;
+    -h|--help|help) usage ;;
+    *) usage; exit 1 ;;
+esac
